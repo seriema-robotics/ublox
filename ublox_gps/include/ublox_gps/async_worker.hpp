@@ -197,7 +197,15 @@ void AsyncWorker<StreamT>::doWrite() {
     return;
   }
   // Write all the data in the out buffer
-  asio::write(*stream_, asio::buffer(out_.data(), out_.size()));
+  try {
+    asio::error_code ec;
+    asio::write(*stream_, asio::buffer(out_.data(), out_.size()), ec);
+    if (ec) {
+      RCLCPP_ERROR(logger_, "Ublox AsyncWorker::doWrite error: %s", ec.message().c_str());
+    }
+  } catch (const std::exception& e) {
+    RCLCPP_ERROR(logger_, "Ublox AsyncWorker::doWrite exception: %s", e.what());
+  }
 
   if (debug_ >= 2) {
     // Print the data that was sent

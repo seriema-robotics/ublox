@@ -37,6 +37,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <rclcpp/rclcpp.hpp>
@@ -639,7 +640,22 @@ void UbloxNode::initializeRosDiagnostics() {
 
 void UbloxNode::processMonVer() {
   ublox_msgs::msg::MonVER monVer;
-  if (!gps_->poll(monVer)) {
+  bool success = false;
+  constexpr int kMaxRetries = 5;
+  constexpr std::chrono::milliseconds kMonVerTimeout(2000);
+
+  for (int retry = 0; retry < kMaxRetries; ++retry) {
+    if (retry > 0) {
+      RCLCPP_WARN(this->get_logger(), "Retrying MonVER poll (attempt %d/%d)...", retry + 1, kMaxRetries);
+    }
+    if (gps_->poll(monVer, {}, kMonVerTimeout)) {
+      success = true;
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  }
+
+  if (!success) {
     throw std::runtime_error("Failed to poll MonVER & set relevant settings");
   }
 
